@@ -130,6 +130,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["agentName", "poId"]
                 },
             },
+            {
+                name: "handoff_to_manager",
+                description: "Used by the Procurement Officer to notify the Finance Manager of a drafted PO.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        ...commonProperties,
+                        poId: { type: "string", description: "The ID of the drafted PO" },
+                        notes: { type: "string", description: "Any notes for the manager" }
+                    },
+                    required: ["agentName", "poId"]
+                },
+            },
+            {
+                name: "view_audit_logs",
+                description: "Returns the recent system audit logs.",
+                inputSchema: {
+                    type: "object",
+                    properties: { ...commonProperties },
+                    required: ["agentName"]
+                },
+            },
         ],
     };
 });
@@ -168,15 +190,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         else if (name === "approve_po") {
             const { poId } = args as { poId: string };
             const response = await axios.patch(`${ERP_API_BASE_URL}/procurement/${poId}/status`, {
-                status: "APPROVED"
+                status: "APPROVED",
+                agentName
             });
             result = response.data.data;
         }
         else if (name === "reject_po") {
             const { poId } = args as { poId: string };
             const response = await axios.patch(`${ERP_API_BASE_URL}/procurement/${poId}/status`, {
-                status: "REJECTED"
+                status: "REJECTED",
+                agentName
             });
+            result = response.data.data;
+        }
+        else if (name === "handoff_to_manager") {
+            const { poId, notes } = args as { poId: string, notes: string };
+            result = {
+                status: "NOTIFIED",
+                message: `Finance Manager has been notified about PO ${poId}.`,
+                details: notes
+            };
+        }
+        else if (name === "view_audit_logs") {
+            const response = await axios.get(`${ERP_API_BASE_URL}/audit`);
             result = response.data.data;
         }
         else {
